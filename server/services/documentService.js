@@ -1,5 +1,4 @@
 const fs = require("fs");
-const { getDocument } = require("pdfjs-serverless");
 const mammoth = require("mammoth");
 
 const extractTextFromFile = async (filePath, mimeType) => {
@@ -8,6 +7,8 @@ const extractTextFromFile = async (filePath, mimeType) => {
   }
 
   if (mimeType === "application/pdf") {
+    const { getDocument } = await import("pdfjs-serverless");
+
     const buffer = fs.readFileSync(filePath);
 
     const loadingTask = getDocument({
@@ -18,7 +19,11 @@ const extractTextFromFile = async (filePath, mimeType) => {
     const pdfDocument = await loadingTask.promise;
     const pages = [];
 
-    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
+    for (
+      let pageNumber = 1;
+      pageNumber <= pdfDocument.numPages;
+      pageNumber++
+    ) {
       const page = await pdfDocument.getPage(pageNumber);
       const textContent = await page.getTextContent();
 
@@ -27,10 +32,13 @@ const extractTextFromFile = async (filePath, mimeType) => {
         .join(" ");
 
       pages.push(pageText);
+
       page.cleanup();
     }
 
-    await loadingTask.destroy();
+    if (typeof loadingTask.destroy === "function") {
+      await loadingTask.destroy();
+    }
 
     return pages.join("\n").trim();
   }
