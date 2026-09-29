@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { PDFParse } = require("pdf-parse");
+const { getDocument } = require("pdfjs-serverless");
 const mammoth = require("mammoth");
 
 const extractTextFromFile = async (filePath, mimeType) => {
@@ -10,12 +10,29 @@ const extractTextFromFile = async (filePath, mimeType) => {
   if (mimeType === "application/pdf") {
     const buffer = fs.readFileSync(filePath);
 
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
+    const loadingTask = getDocument({
+      data: new Uint8Array(buffer),
+      useSystemFonts: true,
+    });
 
-    await parser.destroy();
+    const pdfDocument = await loadingTask.promise;
+    const pages = [];
 
-    return result.text.trim();
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
+      const page = await pdfDocument.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+
+      const pageText = textContent.items
+        .map((item) => item.str || "")
+        .join(" ");
+
+      pages.push(pageText);
+      page.cleanup();
+    }
+
+    await loadingTask.destroy();
+
+    return pages.join("\n").trim();
   }
 
   if (
@@ -34,7 +51,7 @@ const extractTextFromFile = async (filePath, mimeType) => {
   }
 
   throw new Error(
-    "Text extraction is currently supported for PDF and DOCX files."
+    "Text extraction is currently supported for PDF, DOCX, and TXT files."
   );
 };
 
