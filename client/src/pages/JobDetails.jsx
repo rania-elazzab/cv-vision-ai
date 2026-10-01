@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -9,50 +9,61 @@ import {
   Loader2,
   AlertCircle,
   Target,
+  GraduationCap,
+  Compass,
+  Lightbulb,
 } from "lucide-react";
 import api from "../services/api";
 
 export default function JobDetails() {
   const navigate = useNavigate();
   const { jobId } = useParams();
+  const location = useLocation();
 
-  const [career, setCareer] = useState(null);
-  const [resumeId, setResumeId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [career, setCareer] = useState(
+    location.state?.career || null
+  );
+  const [resumeId, setResumeId] = useState(
+    location.state?.resumeId || ""
+  );
+  const [loading, setLoading] = useState(!career);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadCareerDetails = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const resumesResponse = await api.get("/resumes");
-        const resumes = resumesResponse.data.resumes || [];
+        if (!resumeId) {
+          const resumesResponse = await api.get("/resumes");
+          const resumes = resumesResponse.data.resumes || [];
 
-        const completedResume = resumes.find(
-          (resume) => resume.status === "completed"
-        );
-
-        if (!completedResume) {
-          throw new Error(
-            "Please analyze a CV before viewing career details."
+          const completedResume = resumes.find(
+            (resume) => resume.status === "completed"
           );
+
+          if (!completedResume) {
+            throw new Error(
+              "Please analyze a CV before viewing career details."
+            );
+          }
+
+          setResumeId(completedResume._id);
         }
 
-        setResumeId(completedResume._id);
-
         const response = await api.get(
-          `/jobs/recommended/${completedResume._id}`
+          `/jobs/recommended/${resumeId}`
         );
 
-        const recommendedCareers =
-          response.data.jobs || [];
+        const recommendedCareers = response.data.jobs || [];
 
         const selectedCareer = recommendedCareers.find(
           (item) =>
-            String(item._id || item.id) ===
-            String(jobId)
+            String(item.id || item._id || item.title) ===
+            String(decodeURIComponent(jobId))
         );
 
         if (!selectedCareer) {
@@ -61,22 +72,32 @@ export default function JobDetails() {
           );
         }
 
-        setCareer(selectedCareer);
+        if (!cancelled) {
+          setCareer(selectedCareer);
+        }
       } catch (err) {
         console.error("Career details error:", err);
 
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Unable to load career details."
-        );
+        if (!cancelled) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Unable to load career details."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     loadCareerDetails();
-  }, [jobId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, resumeId]);
 
   const getScoreStyles = (score) => {
     if (score >= 80) {
@@ -119,7 +140,7 @@ export default function JobDetails() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Preparing the career match information
+              Preparing the AI career match information
               for your CV.
             </p>
           </div>
@@ -133,9 +154,7 @@ export default function JobDetails() {
       <main className="min-h-screen bg-[#F6F8FC] px-6 py-10 text-[#0B1220] md:px-10">
         <div className="mx-auto max-w-5xl">
           <button
-            onClick={() =>
-              navigate("/job-matcher")
-            }
+            onClick={() => navigate("/job-matcher")}
             className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-[#3157D5]"
           >
             <ArrowLeft size={17} />
@@ -157,10 +176,8 @@ export default function JobDetails() {
             </p>
 
             <button
-              onClick={() =>
-                navigate("/job-matcher")
-              }
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#3157D5] px-5 py-3 text-sm font-black text-white transition hover:bg-[#2748B8]"
+              onClick={() => navigate("/job-matcher")}
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3157D5] px-5 py-3 text-sm font-black text-white transition hover:bg-[#2748B8]"
             >
               <ArrowLeft size={17} />
               Return to Career Matches
@@ -174,33 +191,24 @@ export default function JobDetails() {
   const score = Number(career.matchScore || 0);
   const scoreStyles = getScoreStyles(score);
 
-  const matchingSkills =
-    career.matchingSkills || [];
-
-  const missingSkills =
-    career.missingSkills || [];
+  const matchingSkills = career.matchingSkills || [];
+  const missingSkills = career.missingSkills || [];
+  const recommendations = career.recommendations || [];
 
   return (
     <main className="min-h-screen bg-[#F6F8FC] px-6 py-10 text-[#0B1220] md:px-10">
       <div className="mx-auto max-w-6xl">
-
-        {/* Back */}
         <button
-          onClick={() =>
-            navigate("/job-matcher")
-          }
+          onClick={() => navigate("/job-matcher")}
           className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-[#3157D5]"
         >
           <ArrowLeft size={17} />
           Back to Career Matches
         </button>
 
-        {/* Hero */}
         <section className="overflow-hidden rounded-[2rem] bg-[#0B1220] p-7 text-white shadow-xl md:p-10">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-
             <div className="flex items-start gap-5">
-
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#3157D5] shadow-lg shadow-[#3157D5]/20">
                 <BriefcaseBusiness size={29} />
               </div>
@@ -215,15 +223,19 @@ export default function JobDetails() {
                   {career.title}
                 </h1>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  A career path identified from the
-                  skills and experience found in your
-                  analyzed CV.
+                <p className="mt-3 flex items-center gap-1.5 text-xs font-bold text-[#7FA1FF]">
+                  <Compass size={13} />
+                  Selected by AI for this CV
                 </p>
+
+                {career.reason && (
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                    {career.reason}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Score */}
             <div
               className={`shrink-0 rounded-3xl border px-7 py-5 text-center ${scoreStyles.background} ${scoreStyles.border}`}
             >
@@ -242,105 +254,57 @@ export default function JobDetails() {
           </div>
         </section>
 
-        {/* Main Content */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-
-          {/* Description */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-
             <div className="flex items-center gap-3">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF0FF] text-[#3157D5]">
                 <BriefcaseBusiness size={21} />
               </div>
 
               <div>
                 <h2 className="text-lg font-black">
-                  About this Career Role
+                  Experience Match
                 </h2>
 
                 <p className="text-xs font-semibold text-slate-400">
-                  Career path overview
+                  Compared with your work history
                 </p>
               </div>
-
             </div>
 
             <p className="mt-6 text-sm leading-7 text-slate-600">
-              {career.description ||
-                "No career description available."}
+              {career.experienceMatch ||
+                "No experience comparison available."}
             </p>
           </section>
 
-          {/* Match Summary */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-
             <div className="flex items-center gap-3">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF0FF] text-[#3157D5]">
-                <Sparkles size={21} />
+                <GraduationCap size={21} />
               </div>
 
               <div>
                 <h2 className="text-lg font-black">
-                  Match Summary
+                  Education Match
                 </h2>
 
                 <p className="text-xs font-semibold text-slate-400">
-                  Based on your analyzed CV
+                  Degrees and certifications
                 </p>
               </div>
-
             </div>
 
-            <div className="mt-6">
-
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-600">
-                  Compatibility
-                </span>
-
-                <span
-                  className={`text-sm font-black ${scoreStyles.text}`}
-                >
-                  {score}%
-                </span>
-              </div>
-
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-[#3157D5] transition-all duration-700"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      Math.max(0, score)
-                    )}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() =>
-                resumeId &&
-                navigate(`/analysis/${resumeId}`)
-              }
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-[#3157D5] hover:text-[#3157D5]"
-            >
-              <Sparkles size={17} />
-              View My CV Analysis
-            </button>
+            <p className="mt-6 text-sm leading-7 text-slate-600">
+              {career.educationMatch ||
+                "No education comparison available."}
+            </p>
           </section>
         </div>
 
-        {/* Skills */}
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-
-          {/* Matching Skills */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-
             <div className="flex items-center gap-3">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                 <CheckCircle2 size={21} />
               </div>
@@ -354,26 +318,18 @@ export default function JobDetails() {
                   Skills already found in your CV
                 </p>
               </div>
-
             </div>
 
             {matchingSkills.length > 0 ? (
               <div className="mt-6 flex flex-wrap gap-2.5">
-
-                {matchingSkills.map(
-                  (skill, index) => (
-                    <span
-                      key={`${skill}-${index}`}
-                      className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"
-                    >
-                      {typeof skill === "string"
-                        ? skill
-                        : skill.name ||
-                          skill.skill}
-                    </span>
-                  )
-                )}
-
+                {matchingSkills.map((skill, index) => (
+                  <span
+                    key={`${skill}-${index}`}
+                    className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"
+                  >
+                    {skill}
+                  </span>
+                ))}
               </div>
             ) : (
               <p className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
@@ -383,11 +339,8 @@ export default function JobDetails() {
             )}
           </section>
 
-          {/* Missing Skills */}
           <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-
             <div className="flex items-center gap-3">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
                 <XCircle size={21} />
               </div>
@@ -398,30 +351,22 @@ export default function JobDetails() {
                 </h2>
 
                 <p className="text-xs font-semibold text-slate-400">
-                  Skills associated with this career
-                  that are missing from your CV
+                  Needed for this role but missing
+                  from your CV
                 </p>
               </div>
-
             </div>
 
             {missingSkills.length > 0 ? (
               <div className="mt-6 flex flex-wrap gap-2.5">
-
-                {missingSkills.map(
-                  (skill, index) => (
-                    <span
-                      key={`${skill}-${index}`}
-                      className="rounded-full bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700"
-                    >
-                      {typeof skill === "string"
-                        ? skill
-                        : skill.name ||
-                          skill.skill}
-                    </span>
-                  )
-                )}
-
+                {missingSkills.map((skill, index) => (
+                  <span
+                    key={`${skill}-${index}`}
+                    className="rounded-full bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700"
+                  >
+                    {skill}
+                  </span>
+                ))}
               </div>
             ) : (
               <div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
@@ -433,44 +378,74 @@ export default function JobDetails() {
           </section>
         </div>
 
-        {/* Career Insight */}
-        <section className="mt-6 rounded-3xl border border-[#DDE6FF] bg-[#EAF0FF] p-6 md:p-7">
-
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-
-            <div>
-              <div className="flex items-center gap-2">
-                <Target
-                  size={19}
-                  className="text-[#3157D5]"
-                />
-
-                <h2 className="text-lg font-black text-[#0B1220]">
-                  Career Match Insight
-                </h2>
+        {recommendations.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
+                <Lightbulb size={21} />
               </div>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                This match is calculated from the
-                skills and information extracted from
-                your CV. Missing skills show areas you
-                can develop for this career path.
-              </p>
+              <div>
+                <h2 className="text-lg font-black">
+                  How To Reach This Role
+                </h2>
+
+                <p className="text-xs font-semibold text-slate-400">
+                  AI-generated next steps
+                </p>
+              </div>
             </div>
 
-            <button
-              onClick={() =>
-                navigate("/job-matcher")
-              }
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#3157D5] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#3157D5]/20 transition hover:bg-[#2748B8]"
-            >
-              <ArrowLeft size={17} />
-              Back to Career Matches
-            </button>
+            <ol className="mt-6 space-y-3">
+              {recommendations.map((item, index) => (
+                <li
+                  key={`${item}-${index}`}
+                  className="flex gap-3 rounded-2xl bg-[#F8FAFD] p-4"
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#3157D5] text-[11px] font-black text-white">
+                    {index + 1}
+                  </span>
 
+                  <p className="text-sm leading-6 text-slate-600">
+                    {item}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        <section className="mt-6 flex flex-col gap-5 rounded-3xl border border-[#DDE6FF] bg-[#EAF0FF] p-6 md:flex-row md:items-center md:justify-between md:p-7">
+          <div>
+            <div className="flex items-center gap-2">
+              <Target
+                size={19}
+                className="text-[#3157D5]"
+              />
+
+              <h2 className="text-lg font-black text-[#0B1220]">
+                Career Match Insight
+              </h2>
+            </div>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              The AI read your CV and chose this role, the
+              match score reflects your real skills against
+              what the role needs.
+            </p>
           </div>
-        </section>
 
+          <button
+            onClick={() =>
+              resumeId &&
+              navigate(`/analysis/${resumeId}`)
+            }
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#3157D5] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#3157D5]/20 transition hover:bg-[#2748B8]"
+          >
+            <Sparkles size={17} />
+            View My CV Analysis
+          </button>
+        </section>
       </div>
     </main>
   );

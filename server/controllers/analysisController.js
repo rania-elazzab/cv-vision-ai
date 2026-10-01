@@ -1,6 +1,12 @@
 const Resume = require("../models/Resume");
 const Analysis = require("../models/Analysis");
-const { analyzeResume } = require("../services/aiService");
+
+const {
+  analyzeResume,
+  generateCareerMatches,
+  generateCareerInsight,
+  normalizeCareerInsight,
+} = require("../services/aiService");
 
 const analyzeResumeById = async (req, res) => {
   try {
@@ -26,15 +32,9 @@ const analyzeResumeById = async (req, res) => {
     resume.status = "analyzing";
     await resume.save();
 
-    const aiResponse = await analyzeResume(resume.extractedText);
+    const analysisData = await analyzeResume(resume.extractedText);
 
-    let analysisData;
-
-    try {
-      analysisData = JSON.parse(aiResponse);
-    } catch (parseError) {
-      console.error("AI JSON parsing error:", parseError);
-
+    if (!analysisData || typeof analysisData !== "object") {
       resume.status = "failed";
       await resume.save();
 
@@ -43,11 +43,6 @@ const analyzeResumeById = async (req, res) => {
         message: "AI returned an invalid analysis format.",
       });
     }
-
-    /*
-     * Convert the AI response into the exact structure
-     * expected by the MongoDB Analysis schema.
-     */
 
     const normalizedSkills = Array.isArray(analysisData.skills)
       ? analysisData.skills.map((skill) => {
@@ -186,6 +181,10 @@ const analyzeResumeById = async (req, res) => {
       recommendations: Array.isArray(analysisData.recommendations)
         ? analysisData.recommendations
         : [],
+
+      careerInsight: normalizeCareerInsight(
+        analysisData.careerInsight
+      ),
     });
 
     resume.status = "completed";
@@ -211,7 +210,9 @@ const getAnalysisByResumeId = async (req, res) => {
     const analysis = await Analysis.findOne({
       resume: req.params.resumeId,
       user: req.user._id,
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (!analysis) {
       return res.status(404).json({
@@ -234,7 +235,129 @@ const getAnalysisByResumeId = async (req, res) => {
   }
 };
 
+const getCareerInsight = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.resumeId,
+      user: req.user._id,
+    });
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        message: "CV not found.",
+      });
+    }
+
+    if (!resume.extractedText || !resume.extractedText.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "No extracted text is available for this CV.",
+      });
+    }
+
+    const analysis = await Analysis.findOne({
+      resume: resume._id,
+      user: req.user._id,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (analysis?.careerInsight) {
+      const hasContent = Boolean(
+        analysis.careerInsight.professionalProfile ||
+          analysis.careerInsight.strongestCareerDirection ||
+          analysis.careerInsight.headline
+      );
+
+      if (hasContent) {
+        return res.status(200).json({
+          success: true,
+          resumeId: resume._id,
+          careerInsight: analysis.careerInsight,
+          source: "analysis",
+        });
+      }
+    }
+
+    const careerInsight = await generateCareerInsight(
+      resume.extractedText
+    );
+
+    if (analysis) {
+      await Analysis.updateOne(
+        { _id: analysis._id },
+        { $set: { careerInsight } }
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      resumeId: resume._id,
+      careerInsight,
+      source: "generated",
+    });
+  } catch (error) {
+    console.error("Get career insight error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error?.message ||
+        "Unable to generate the AI career insight.",
+    });
+  }
+};
+
+/*
+ * AI JOB MATCHER
+ * Generates career roles specifically from the user's CV.
+ */
+const getCareerMatches = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.resumeId,
+      user: req.user._id,
+    });
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        message: "CV not found.",
+      });
+    }
+
+    if (!resume.extractedText || !resume.extractedText.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "No extracted text is available for this CV.",
+      });
+    }
+
+    const careerMatches = await generateCareerMatches(
+      resume.extractedText
+    );
+
+    return res.status(200).json({
+      success: true,
+      resumeId: resume._id,
+      careerMatches,
+    });
+  } catch (error) {
+    console.error("Get career matches error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error?.message ||
+        "Unable to generate AI career matches.",
+    });
+  }
+};
+
 module.exports = {
   analyzeResumeById,
   getAnalysisByResumeId,
+  getCareerInsight,
+  getCareerMatches,
 };

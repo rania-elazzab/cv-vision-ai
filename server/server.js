@@ -17,16 +17,34 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-app.use(
-  cors({
-    origin: [
-      process.env.CLIENT_URL,
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ].filter(Boolean),
-    credentials: true,
-  })
-);
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+]
+  .filter(Boolean)
+  .flatMap((origin) => origin.split(",").map((value) => value.trim()))
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -37,7 +55,7 @@ app.get("/", (req, res) => {
   res.json({
     success: true,
     message: "CVision AI API is running",
-    version: "1.0.0",
+    version: "1.1.0",
   });
 });
 
@@ -45,6 +63,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
 app.use("/api/analysis", analysisRoutes);
 app.use("/api/jobs", jobRoutes);
+
+/*
+ * On Vercel this module is imported by api/index.js rather than run
+ * directly, so the DB connection is established here and reused.
+ */
+connectDB().catch((error) => {
+  console.error("MongoDB connection failed:", error.message);
+});
 
 const startServer = async () => {
   try {

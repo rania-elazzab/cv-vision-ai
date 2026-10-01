@@ -54,8 +54,7 @@ export function AuthProvider({ children }) {
         const response = await api.get("/auth/me");
         setUser(response.data.user);
       } catch (error) {
-        localStorage.removeItem("cvision_token");
-        setUser(null);
+        console.error("SESSION RESTORE FAILED:", error);
       } finally {
         setLoading(false);
       }

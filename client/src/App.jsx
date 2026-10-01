@@ -1,21 +1,23 @@
 import { useRef, useState } from "react";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 
-import {
-  ArrowDown,
-  ArrowRight,
-  BrainCircuit,
-  Check,
-  CheckCircle2,
-  FileSearch,
-  FileText,
-  Menu,
-  Sparkles,
-  Target,
-  Upload,
-  X,
-  Zap,
+import { 
+  ArrowDown, 
+  ArrowRight, 
+  BrainCircuit, 
+  Check, 
+  CheckCircle2, 
+  FileSearch, 
+  FileText, 
+  Menu, 
+  Sparkles, 
+  Target, 
+  Upload, 
+  X, 
+  Zap, 
 } from "lucide-react";
+
+import { useAuth } from "./context/AuthContext.jsx";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -29,10 +31,11 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import JobDetails from "./pages/JobDetails";
-
-
+import CareerInsight from "./pages/CareerInsight";
 
 function Landing() {
+  const { user } = useAuth();
+
   const fileInputRef = useRef(null);
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -185,10 +188,10 @@ function Landing() {
             </button>
 
             <Link
-              to="/login"
+              to={user ? "/dashboard" : "/login"}
               className="text-sm font-bold text-[#3157D5] transition hover:text-[#2649BA]"
             >
-              Log in
+              {user ? "My Dashboard" : "Log in"}
             </Link>
 
             <button
@@ -227,11 +230,11 @@ function Landing() {
               </button>
 
               <Link
-                to="/login"
+                to={user ? "/dashboard" : "/login"}
                 onClick={() => setMobileMenu(false)}
                 className="rounded-xl px-4 py-3 text-sm font-bold text-[#3157D5] hover:bg-blue-50"
               >
-                Log in
+                {user ? "My Dashboard" : "Log in"}
               </Link>
 
               <button
@@ -283,10 +286,10 @@ function Landing() {
             </button>
 
             <Link
-              to="/login"
+              to={user ? "/dashboard" : "/login"}
               className="group inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-7 py-4 font-bold text-[#0B1220] shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:text-[#3157D5] hover:shadow-lg"
             >
-              Log in to dashboard
+              {user ? "Open my dashboard" : "Log in to dashboard"}
 
               <ArrowRight
                 size={17}
@@ -717,16 +720,18 @@ function Landing() {
               </div>
 
               <Link
-                to="/login"
+                to={user ? "/upload" : "/login"}
                 className="mt-6 inline-flex items-center gap-3 rounded-2xl bg-[#3157D5] px-7 py-4 font-black text-white transition hover:-translate-y-1 hover:bg-[#2649BA]"
               >
-                Continue to analysis
+                {user ? "Continue to upload" : "Continue to analysis"}
+
                 <ArrowRight size={18} />
               </Link>
 
               <p className="mt-4 text-xs text-slate-500">
-                Sign in first so your CV analysis can be securely saved to
-                your account.
+                {user
+                  ? "Your account is ready. Continue to upload and analyze your CV."
+                  : "Sign in first so your CV analysis can be securely saved to your account."}
               </p>
             </div>
           )}
@@ -796,21 +801,24 @@ function App() {
 
           <Route path="/analysis/:resumeId" element={<Analysis />} />
 
-            <Route path="/my-cvs" element={<MyCVs />} />
+          <Route path="/my-cvs" element={<MyCVs />} />
 
-              <Route path="/job-matcher" element={<JobMatcher />} />
+          <Route path="/job-matcher" element={<JobMatcher />} />
 
-              <Route
-  path="/job-matcher/:jobId"
-  element={<JobDetails />}
+          <Route
+            path="/job-matcher/:jobId"
+            element={<JobDetails />}
+          />
+          <Route
+  path="/career-insight"
+  element={<CareerInsight />}
 />
 
-  <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={<Analytics />} />
 
-  <Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<Profile />} />
 
-  <Route path="/settings" element={<Settings />} />
-
+          <Route path="/settings" element={<Settings />} />
         </Route>
 
         <Route
@@ -842,3 +850,4 @@ function App() {
 }
 
 export default App;
+

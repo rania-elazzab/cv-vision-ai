@@ -196,6 +196,38 @@ const analysisSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    careerInsight: {
+      headline: {
+        type: String,
+        default: "",
+      },
+
+      professionalProfile: {
+        type: String,
+        default: "",
+      },
+
+      strongestCareerDirection: {
+        type: String,
+        default: "",
+      },
+
+      keySkills: {
+        type: [String],
+        default: [],
+      },
+
+      areasToImprove: {
+        type: [String],
+        default: [],
+      },
+
+      nextSteps: {
+        type: [String],
+        default: [],
+      },
+    },
   },
   {
     timestamps: true,

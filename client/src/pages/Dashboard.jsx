@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
 
 const stats = [
   {
@@ -141,6 +142,55 @@ export default function Dashboard() {
   const [dragActive, setDragActive] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const [careerInsight, setCareerInsight] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCareerInsight = async () => {
+      try {
+        const resumesResponse = await api.get("/resumes");
+
+        const resumes = resumesResponse.data.resumes || [];
+
+        const latestResume = resumes.find(
+          (resume) => resume.status === "completed"
+        );
+
+        if (!latestResume) {
+          if (!cancelled) {
+            setInsightLoading(false);
+          }
+
+          return;
+        }
+
+        const insightResponse = await api.get(
+          `/analysis/${latestResume._id}/career-insight`
+        );
+
+        if (!cancelled) {
+          setCareerInsight(
+            insightResponse.data.careerInsight || null
+          );
+        }
+      } catch (error) {
+        console.error("Career insight error:", error);
+      } finally {
+        if (!cancelled) {
+          setInsightLoading(false);
+        }
+      }
+    };
+
+    loadCareerInsight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const firstName = useMemo(() => {
     if (!user?.name) return "there";
 
@@ -193,6 +243,10 @@ export default function Dashboard() {
 
   const goToUpload = () => {
     navigate("/upload");
+  };
+
+  const goToCareerInsight = () => {
+    navigate("/career-insight");
   };
 
   const goToJobs = () => {
@@ -416,7 +470,9 @@ export default function Dashboard() {
 
               {showNotifications && (
                 <div className="absolute right-0 top-12 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-300/30">
-                  <p className="text-sm font-bold">Notifications</p>
+                  <p className="text-sm font-bold">
+                    Notifications
+                  </p>
 
                   <div className="mt-3 rounded-xl bg-[#EAF0FF] p-3">
                     <p className="text-xs font-semibold text-[#3157D5]">
@@ -806,20 +862,65 @@ export default function Dashboard() {
                   AI Career Insight
                 </p>
 
-                <p className="mt-1 max-w-4xl text-xs leading-6 text-slate-500">
-                  Your combination of web development and marketing skills
-                  creates a strong cross-functional profile. Consider
-                  highlighting measurable project results and React-based
-                  work in your next CV version.
-                </p>
+                {insightLoading ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="h-3 w-full animate-pulse rounded-full bg-slate-200" />
+                    <div className="h-3 w-4/5 animate-pulse rounded-full bg-slate-200" />
+                  </div>
+                ) : careerInsight ? (
+                  <>
+                    {careerInsight.headline && (
+                      <p className="mt-1 text-sm font-bold text-[#3157D5]">
+                        {careerInsight.headline}
+                      </p>
+                    )}
+
+                    <p className="mt-1 max-w-4xl text-xs leading-6 text-slate-500">
+                      {careerInsight.professionalProfile ||
+                        careerInsight.strongestCareerDirection ||
+                        ""}
+                    </p>
+
+                    {careerInsight.strongestCareerDirection && (
+                      <p className="mt-2 max-w-4xl text-xs leading-6 text-slate-500">
+                        <span className="font-bold text-slate-600">
+                          Strongest direction:{" "}
+                        </span>
+
+                        {careerInsight.strongestCareerDirection}
+                      </p>
+                    )}
+
+                    {careerInsight.keySkills?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {careerInsight.keySkills
+                          .slice(0, 6)
+                          .map((skill, index) => (
+                            <span
+                              key={`${skill}-${index}`}
+                              className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#3157D5] shadow-sm"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-1 max-w-4xl text-xs leading-6 text-slate-500">
+                    Upload and analyze a CV to generate your
+                    personalised AI career insight.
+                  </p>
+                )}
               </div>
 
+              {/* CHANGED: opens the real AI Career Insight page */}
               <button
                 type="button"
-                onClick={goToUpload}
+                onClick={goToCareerInsight}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B1220] px-4 py-3 text-xs font-bold text-white transition hover:bg-[#18243A]"
               >
-                Improve my CV
+                Explore career path
                 <ArrowUpRight size={14} />
               </button>
             </div>

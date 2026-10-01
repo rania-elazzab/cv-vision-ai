@@ -1,3 +1,4 @@
+
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
@@ -55,7 +56,7 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Register error:", error);
+    console.error("REGISTER ERROR DETAILS:", error);
 
     return res.status(500).json({
       success: false,
@@ -113,11 +114,11 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("LOGIN ERROR DETAILS:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to login.",
+      message: error.message || "Unable to login.",
     });
   }
 };

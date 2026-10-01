@@ -1,10 +1,12 @@
 const Resume = require("../models/Resume");
 const Analysis = require("../models/Analysis");
 
-const {
-  getRecommendedJobs,
-} = require("../services/jobRecommendationService");
+const { getAiCareerMatches } = require("../services/careerService");
 
+/*
+ * Career Matches are decided by Groq from the CV text itself.
+ * The AI selects the roles; there is no static role list involved.
+ */
 const getRecommendedJobsForResume = async (req, res) => {
   try {
     const { resumeId } = req.params;
@@ -21,19 +23,28 @@ const getRecommendedJobsForResume = async (req, res) => {
       });
     }
 
-    const analysis = await Analysis.findOne({
-      resume: resume._id,
-      user: req.user._id,
-    }).sort({ createdAt: -1 });
-
-    if (!analysis) {
+    if (!resume.extractedText || !resume.extractedText.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Please analyze this CV before searching for jobs.",
+        message:
+          "No CV text is available. Please upload the CV again.",
       });
     }
 
-    const jobs = getRecommendedJobs(analysis, 10);
+    const hasAnalysis = await Analysis.exists({
+      resume: resume._id,
+      user: req.user._id,
+    });
+
+    if (!hasAnalysis) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please analyze this CV before searching for career matches.",
+      });
+    }
+
+    const jobs = await getAiCareerMatches(resume.extractedText);
 
     return res.status(200).json({
       success: true,
@@ -42,11 +53,13 @@ const getRecommendedJobsForResume = async (req, res) => {
       count: jobs.length,
     });
   } catch (error) {
-    console.error("Get recommended jobs error:", error);
+    console.error("Get AI career matches error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to get recommended jobs.",
+      message:
+        error?.message ||
+        "Unable to generate AI career matches for this CV.",
     });
   }
 };
