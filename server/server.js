@@ -60,6 +60,21 @@ app.get("/", (req, res) => {
   });
 });
 
+// Connect to MongoDB before handling API requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Database connection failed.",
+    });
+  }
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
 app.use("/api/analysis", analysisRoutes);
