@@ -1,6 +1,3 @@
-const fs = require("fs");
-const path = require("path");
-
 const Resume = require("../models/Resume");
 const { extractTextFromFile } = require("../services/documentService");
 
@@ -13,37 +10,47 @@ const uploadResume = async (req, res) => {
       });
     }
 
-    const resume = await Resume.create({
-      user: req.user._id,
-      originalName: req.file.originalname,
-      fileType: req.file.mimetype,
-      fileUrl: `/uploads/${req.file.filename}`,
-      extractedText: "",
-      status: "extracting",
-    });
+    if (!req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        message: "Uploaded CV file could not be read.",
+      });
+    }
+
+    let extractedText = "";
 
     try {
-      const extractedText = await extractTextFromFile(
-        req.file.path,
+      extractedText = await extractTextFromFile(
+        req.file.buffer,
         req.file.mimetype
       );
-
-      resume.extractedText = extractedText;
-      resume.status = "completed";
-
-      await resume.save();
     } catch (extractionError) {
       console.error("Text extraction error:", extractionError);
 
-      resume.status = "failed";
-      await resume.save();
+      const failedResume = await Resume.create({
+        user: req.user._id,
+        originalName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileUrl: "",
+        extractedText: "",
+        status: "failed",
+      });
 
       return res.status(422).json({
         success: false,
         message: "CV uploaded, but text extraction failed.",
-        resume,
+        resume: failedResume,
       });
     }
+
+    const resume = await Resume.create({
+      user: req.user._id,
+      originalName: req.file.originalname,
+      fileType: req.file.mimetype,
+      fileUrl: "",
+      extractedText,
+      status: "completed",
+    });
 
     return res.status(201).json({
       success: true,
@@ -52,10 +59,6 @@ const uploadResume = async (req, res) => {
     });
   } catch (error) {
     console.error("Upload resume error:", error);
-
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
 
     return res.status(500).json({
       success: false,
@@ -124,14 +127,6 @@ const deleteResume = async (req, res) => {
         success: false,
         message: "CV not found.",
       });
-    }
-
-    if (resume.fileUrl) {
-      const filePath = path.join(__dirname, "..", resume.fileUrl);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
     }
 
     await Resume.deleteOne({ _id: resume._id });
