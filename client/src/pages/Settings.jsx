@@ -11,11 +11,18 @@ import {
   AlertCircle,
   ChevronRight,
   Sparkles,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  User,
+  X,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function Settings() {
   const { theme, setThemeMode } = useTheme();
+  const { user, deleteAccount } = useAuth();
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -25,6 +32,12 @@ export default function Settings() {
 
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteName, setDeleteName] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const toggleNotification = (key) => {
     setNotifications((previous) => ({
@@ -47,6 +60,69 @@ export default function Settings() {
   const handleSaveNotifications = () => {
     setError("");
     setSuccess("Notification preferences saved successfully.");
+  };
+
+  const openDeleteModal = () => {
+    setShowDeleteModal(true);
+    setDeleteName("");
+    setDeletePassword("");
+    setDeleteError("");
+    setSuccess("");
+    setError("");
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) {
+      return;
+    }
+
+    setShowDeleteModal(false);
+    setDeleteName("");
+    setDeletePassword("");
+    setDeleteError("");
+  };
+
+  const handleBackdropClick = () => {
+    if (deleting) {
+      return;
+    }
+
+    closeDeleteModal();
+  };
+
+  const handleDeleteAccount = async () => {
+    const trimmedName = deleteName.trim();
+
+    if (!trimmedName || !deletePassword) {
+      setDeleteError("Please enter both your account name and password.");
+      return;
+    }
+
+    if (trimmedName !== user?.name) {
+      setDeleteError("Account name does not match.");
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError("");
+
+    try {
+      await deleteAccount(trimmedName, deletePassword);
+
+      setShowDeleteModal(false);
+      setDeleteName("");
+      setDeletePassword("");
+      setDeleteError("");
+
+      window.location.replace("/login");
+    } catch (err) {
+      setDeleteError(
+        err.response?.data?.message ||
+          "Unable to delete account. Please try again."
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -398,6 +474,56 @@ export default function Settings() {
                 </div>
               </div>
             </section>
+
+            {/* Danger Zone */}
+            <section className="rounded-3xl border border-red-200 bg-red-50 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition-colors dark:border-red-900/30 dark:bg-red-950/20 dark:shadow-black/20">
+              <div className="p-6 sm:p-7">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                    <AlertTriangle size={22} />
+                  </div>
+
+                  <div className="flex-1">
+                    <h2 className="text-lg font-black text-red-700 dark:text-red-400">
+                      Danger Zone
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-6 text-red-600 dark:text-red-400">
+                      Irreversible account actions.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={openDeleteModal}
+                    className="group flex w-full items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-4 text-left transition hover:border-red-300 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:hover:border-red-700 dark:hover:bg-red-950/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                        <Trash2 size={18} />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-black text-red-700 dark:text-red-400">
+                          Delete Account
+                        </p>
+
+                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                          Permanently delete your account and all associated data
+                        </p>
+                      </div>
+                    </div>
+
+                    <ChevronRight
+                      size={19}
+                      className="text-red-400 transition group-hover:translate-x-1 group-hover:text-red-600"
+                    />
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
 
           {/* Right panel */}
@@ -477,6 +603,161 @@ export default function Settings() {
           </aside>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={handleBackdropClick}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.15)] dark:bg-[#111827] dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2
+                id="delete-modal-title"
+                className="text-xl font-black text-red-700 dark:text-red-400"
+              >
+                Delete Account
+              </h2>
+
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                aria-label="Close modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-6 space-y-3 text-sm text-slate-600 dark:text-slate-400">
+              <p className="font-semibold">
+                This action is permanent and cannot be undone.
+              </p>
+
+              <p>
+                Deleting your account will permanently remove:
+              </p>
+
+              <ul className="ml-4 list-disc space-y-1">
+                <li>Your account and profile information</li>
+                <li>All uploaded CVs and analyses</li>
+                <li>All saved jobs and match results</li>
+              </ul>
+            </div>
+
+            <div className="mb-6 space-y-4">
+              <div>
+                <label
+                  htmlFor="delete-name"
+                  className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300"
+                >
+                  Account Name (required)
+                </label>
+
+                <div className="relative">
+                  <User
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+
+                  <input
+                    id="delete-name"
+                    type="text"
+                    value={deleteName}
+                    onChange={(e) => {
+                      setDeleteName(e.target.value);
+                      setDeleteError("");
+                    }}
+                    placeholder="Enter your account name"
+                    autoComplete="name"
+                    maxLength={100}
+                    className="w-full rounded-2xl border border-slate-200 bg-[#F8FAFC] py-3.5 pl-11 pr-4 text-sm font-medium outline-none transition focus:border-[#3157D5] focus:bg-white focus:ring-4 focus:ring-[#3157D5]/10 dark:border-slate-700 dark:bg-[#0F172A] dark:focus:border-[#3157D5]"
+                    disabled={deleting}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="delete-password"
+                  className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300"
+                >
+                  Current Password (required)
+                </label>
+
+                <div className="relative">
+                  <Lock
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+
+                  <input
+                    id="delete-password"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeletePassword(e.target.value);
+                      setDeleteError("");
+                    }}
+                    placeholder="Enter your current password"
+                    autoComplete="current-password"
+                    className="w-full rounded-2xl border border-slate-200 bg-[#F8FAFC] py-3.5 pl-11 pr-4 text-sm font-medium outline-none transition focus:border-[#3157D5] focus:bg-white focus:ring-4 focus:ring-[#3157D5]/10 dark:border-slate-700 dark:bg-[#0F172A] dark:focus:border-[#3157D5]"
+                    disabled={deleting}
+                  />
+                </div>
+              </div>
+
+              {deleteError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleting ||
+                  !deleteName.trim() ||
+                  !deletePassword
+                }
+                aria-busy={deleting}
+                className="inline-flex flex-1 items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-red-600/20 transition hover:-translate-y-0.5 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2
+                      size={18}
+                      className="mr-2 animate-spin"
+                    />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Account Permanently"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

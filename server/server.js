@@ -22,6 +22,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
+  "http://localhost:5176",
 ]
   .filter(Boolean)
   .flatMap((origin) => origin.split(",").map((value) => value.trim()))
@@ -63,14 +64,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
 app.use("/api/analysis", analysisRoutes);
 app.use("/api/jobs", jobRoutes);
-
-/*
- * On Vercel this module is imported by api/index.js rather than run
- * directly, so the DB connection is established here and reused.
- */
-connectDB().catch((error) => {
-  console.error("MongoDB connection failed:", error.message);
-});
 
 const startServer = async () => {
   try {

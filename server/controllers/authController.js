@@ -134,8 +134,70 @@ const getMe = async (req, res) => {
   });
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const { name, password } = req.body;
+
+    if (!name || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Account name and password are required.",
+      });
+    }
+
+    if (name.trim() !== req.user.name) {
+      return res.status(403).json({
+        success: false,
+        message: "Account name does not match.",
+      });
+    }
+
+    const userWithPassword = await User.findById(req.user._id);
+
+    if (!userWithPassword) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, userWithPassword.password);
+
+    if (!isPasswordValid) {
+      return res.status(403).json({
+        success: false,
+        message: "Incorrect password.",
+      });
+    }
+
+    const userId = req.user._id;
+
+    await Promise.all([
+      require("../models/Resume").deleteMany({ user: userId }),
+      require("../models/Analysis").deleteMany({ user: userId }),
+      require("../models/Job").deleteMany({ user: userId }),
+      require("../models/Match").deleteMany({ user: userId }),
+    ]);
+
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deleted successfully.",
+    });
+  } catch (error) {
+    console.error("DELETE ACCOUNT ERROR DETAILS:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to delete account.",
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
+  deleteAccount,
 };

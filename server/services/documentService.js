@@ -1,18 +1,15 @@
-const fs = require("fs");
 const mammoth = require("mammoth");
 
-const extractTextFromFile = async (filePath, mimeType) => {
-  if (!fs.existsSync(filePath)) {
-    throw new Error("Uploaded file not found.");
+const extractTextFromFile = async (fileBuffer, mimeType) => {
+  if (!fileBuffer) {
+    throw new Error("Uploaded file buffer not found.");
   }
 
   if (mimeType === "application/pdf") {
     const { getDocument } = await import("pdfjs-serverless");
 
-    const buffer = fs.readFileSync(filePath);
-
     const loadingTask = getDocument({
-      data: new Uint8Array(buffer),
+      data: new Uint8Array(fileBuffer),
       useSystemFonts: true,
     });
 
@@ -48,14 +45,14 @@ const extractTextFromFile = async (filePath, mimeType) => {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     const result = await mammoth.extractRawText({
-      path: filePath,
+      buffer: fileBuffer,
     });
 
     return result.value.trim();
   }
 
   if (mimeType === "text/plain") {
-    return fs.readFileSync(filePath, "utf8").trim();
+    return Buffer.from(fileBuffer).toString("utf8").trim();
   }
 
   throw new Error(

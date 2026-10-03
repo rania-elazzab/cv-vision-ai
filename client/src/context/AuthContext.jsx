@@ -41,6 +41,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const deleteAccount = async (name, password) => {
+    const response = await api.delete("/auth/account", {
+      data: { name, password },
+    });
+
+    localStorage.removeItem("cvision_token");
+    setUser(null);
+
+    return response.data;
+  };
+
   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem("cvision_token");
@@ -71,6 +82,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         logout,
+        deleteAccount,
       }}
     >
       {children}
