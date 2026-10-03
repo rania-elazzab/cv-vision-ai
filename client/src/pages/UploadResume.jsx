@@ -1,6 +1,12 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  FileText,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import api from "../services/api";
 
 export default function UploadResume() {
@@ -65,11 +71,7 @@ export default function UploadResume() {
       const formData = new FormData();
       formData.append("resume", file);
 
-      const response = await api.post("/resumes/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await api.post("/resumes/upload", formData);
 
       setSuccess(
         response.data.message || "CV uploaded successfully."
