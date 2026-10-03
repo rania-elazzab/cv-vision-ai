@@ -71,7 +71,11 @@ export default function UploadResume() {
       const formData = new FormData();
       formData.append("resume", file);
 
-      const response = await api.post("/resumes/upload", formData);
+      const response = await api.post("/resumes/upload", formData, {
+        headers: {
+          "Content-Type": undefined,
+        },
+      });
 
       setSuccess(
         response.data.message || "CV uploaded successfully."
@@ -259,3 +263,5 @@ export default function UploadResume() {
     </main>
   );
 }
+
+
